@@ -1,0 +1,111 @@
+<html>
+<head>
+<meta charset="utf-8">
+<script>
+
+let program = undefined;
+let buffer = undefined;
+let max = 10000;
+let gl = undefined;
+let r0v = 0.5;
+let r1v = 0.25;
+let m0v = 1.0;
+let m1v = 2.0;
+
+function update() {
+    gl.clearColor(0.5, 0.5, 0.5, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+
+    gl.useProgram(program);
+
+    let theta = gl.getAttribLocation(program, 'theta');
+    let r0 = gl.getUniformLocation(program, 'r0');
+    let r1 = gl.getUniformLocation(program, 'r1');
+    let m0 = gl.getUniformLocation(program, 'm0');
+    let m1 = gl.getUniformLocation(program, 'm1');
+
+    gl.uniform1f(r0, r0v);
+    gl.uniform1f(r1, r1v);
+    gl.uniform1f(m0, m0v * 100 / max);
+    gl.uniform1f(m1, m1v * 100 / max);
+
+    r0v += (Math.random() - 0.5) * 0.01;
+    r1v += (Math.random() - 0.5) * 0.01;
+    m0v += (Math.random() - 0.5) * 0.01;
+    m1v += (Math.random() - 0.5) * 0.01;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.vertexAttribPointer(theta, 1, gl.FLOAT, false, 4, 0);
+    gl.enableVertexAttribArray(theta);
+    gl.drawArrays(gl.POINTS, 0, max);
+}
+
+function init_gl() {
+    let canvas = document.getElementById('canvas');
+    gl = canvas.getContext('webgl');
+
+    let vertex_source = `
+attribute float theta;
+uniform float m0;
+uniform float m1;
+uniform float r0;
+uniform float r1;
+
+void main() {
+    gl_Position = vec4(
+        cos(m0 * theta) * r0 + cos(m1 * theta) * r1,
+        sin(m0 * theta) * r0 + sin(m1 * theta) * r1,
+        0, 1.0);
+    gl_PointSize = 1.0;
+}
+`;
+
+    let fragment_source = `
+void main() {
+    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+}
+`;
+
+    let fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragment_shader, fragment_source);
+    gl.compileShader(fragment_shader);
+    if (!gl.getShaderParameter(fragment_shader, gl.COMPILE_STATUS)) {
+        console.log(gl.getShaderInfoLog(fragment_shader));
+        throw 'Could not compile fragment shader';
+    }
+
+    let vertex_shader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertex_shader, vertex_source);
+    gl.compileShader(vertex_shader);
+    if (!gl.getShaderParameter(vertex_shader, gl.COMPILE_STATUS)) {
+        console.log(gl.getShaderInfoLog(vertex_shader));
+        throw 'Could not compile vertex shader';
+    }
+
+    program = gl.createProgram();
+    gl.attachShader(program, vertex_shader);
+    gl.attachShader(program, fragment_shader);
+    gl.linkProgram(program);
+
+    let theta_data = new Float32Array(max);
+    for (let i = 0; i < max; i++) {
+        theta_data[i] = i;
+    }
+    buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, theta_data, gl.STATIC_DRAW);
+}
+
+window.onload = () => {
+    init_gl();
+    setInterval(update, 10);
+};
+
+</script>
+</head>
+<body>
+<canvas width="600" height="600" id="canvas">
+</canvas>
+</body>
+</html>
+
