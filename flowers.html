@@ -2,15 +2,23 @@
 <head>
 <meta charset="utf-8">
 <script>
+'use strict';
 
 let program = undefined;
 let buffer = undefined;
-let max = 10000;
+let max = 200;
 let gl = undefined;
-let r0v = 0.5;
-let r1v = 0.25;
-let m0v = 1.0;
-let m1v = 2.0;
+let t = undefined;
+let t2 = 0;
+let divisor = 100;
+let target_m0v = 61 / divisor;
+let target_m1v = 38 / divisor;
+let init_m0v = undefined;
+let init_m1v = undefined;
+
+function random_rational(near) {
+    return Math.floor(Math.random() * 10 + 1) / Math.floor(Math.random() * 10 + 1);
+}
 
 function update() {
     gl.clearColor(0.5, 0.5, 0.5, 1.0);
@@ -23,21 +31,41 @@ function update() {
     let r1 = gl.getUniformLocation(program, 'r1');
     let m0 = gl.getUniformLocation(program, 'm0');
     let m1 = gl.getUniformLocation(program, 'm1');
+    let ps = gl.getUniformLocation(program, 'ps');
+    
+    if (t === undefined || t > 10000) {
+        init_m0v = target_m0v;
+        init_m1v = target_m1v;
+        if (Math.random() < 0.5) {
+            target_m0v = Math.floor(Math.random() * divisor) / divisor;
+        } else {
+            target_m1v = Math.floor(Math.random() * divisor) / divisor;
+        }
+        t = 0;
+    }
+
+    let r0v = 0.25 + 0.5 * Math.sin(t2 / 1000);
+    let r1v = 0.125 + 0.5 * Math.sin(t2 / 1618);
+    //let m0v = 0.61;
+    //let m1v = 0.5 + 0.00001 * t;
+    let m0v = init_m0v * (1 - t/10000) + target_m0v * (t/10000);
+    let m1v = init_m1v * (1 - t/10000) + target_m1v * (t/10000);
+    let countv = max;
+    let psv = 3;
 
     gl.uniform1f(r0, r0v);
     gl.uniform1f(r1, r1v);
-    gl.uniform1f(m0, m0v * 100 / max);
-    gl.uniform1f(m1, m1v * 100 / max);
+    gl.uniform1f(m0, m0v * 2 * Math.PI);
+    gl.uniform1f(m1, m1v * 2 * Math.PI);
+    gl.uniform1f(ps, psv);
 
-    r0v += (Math.random() - 0.5) * 0.01;
-    r1v += (Math.random() - 0.5) * 0.01;
-    m0v += (Math.random() - 0.5) * 0.01;
-    m1v += (Math.random() - 0.5) * 0.01;
-
+    t += 1;
+    t2 += 1;
+ 
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.vertexAttribPointer(theta, 1, gl.FLOAT, false, 4, 0);
     gl.enableVertexAttribArray(theta);
-    gl.drawArrays(gl.POINTS, 0, max);
+    gl.drawArrays(gl.POINTS, 0, countv);
 }
 
 function init_gl() {
@@ -50,13 +78,14 @@ uniform float m0;
 uniform float m1;
 uniform float r0;
 uniform float r1;
+uniform float ps;
 
 void main() {
     gl_Position = vec4(
         cos(m0 * theta) * r0 + cos(m1 * theta) * r1,
         sin(m0 * theta) * r0 + sin(m1 * theta) * r1,
         0, 1.0);
-    gl_PointSize = 1.0;
+    gl_PointSize = ps;
 }
 `;
 
